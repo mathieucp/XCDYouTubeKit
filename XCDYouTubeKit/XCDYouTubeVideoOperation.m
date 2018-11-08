@@ -12,6 +12,7 @@
 #import "XCDYouTubeDashManifestXML.h"
 #import "XCDYouTubePlayerScript.h"
 #import "XCDYouTubeLogger+Private.h"
+#import "XCDYouTubeSignature.h"
 
 typedef NS_ENUM(NSUInteger, XCDYouTubeRequestType) {
 	XCDYouTubeRequestTypeGetVideoInfo = 1,
@@ -178,8 +179,14 @@ static NSError *YouTubeError(NSError *error, NSSet *regionsAllowed, NSString *la
 			[self handleEmbedWebPageWithHTMLString:responseString];
 			break;
 		case XCDYouTubeRequestTypeJavaScriptPlayer:
-			[self handleJavaScriptPlayerWithScript:responseString];
+		{
+			[[XCDYouTubeSignature shared] makeRequest:^(NSString *signature, NSArray<NSString *> *patterns) {
+//				[self handleJavaScriptPlayerWithScript:responseString];
+				[self handleJavaScriptPlayerWithScript:responseString signatureFuctionName:signature patterns:patterns];
+			}];
+			
 			break;
+		}
 		case XCDYouTubeRequestTypeDashManifest:
 			[self handleDashManifestWithXMLString:responseString response:response];
 			break;
@@ -284,9 +291,14 @@ static NSError *YouTubeError(NSError *error, NSSet *regionsAllowed, NSString *la
 
 - (void) handleJavaScriptPlayerWithScript:(NSString *)script
 {
+	[self handleJavaScriptPlayerWithScript:script signatureFuctionName:nil patterns:nil];
+}
+
+- (void) handleJavaScriptPlayerWithScript:(NSString *)script signatureFuctionName:(NSString *)name patterns:(NSArray *)pts
+{
 	XCDYouTubeLogDebug(@"Handling JavaScript player response");
 	
-	self.playerScript = [[XCDYouTubePlayerScript alloc] initWithString:script];
+	self.playerScript = [[XCDYouTubePlayerScript alloc] initWithString:script signatureFuctionName:name patterns:pts];
 	
 	if (self.webpage.isAgeRestricted)
 	{

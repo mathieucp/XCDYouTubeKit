@@ -7,8 +7,11 @@
 #import <JavaScriptCore/JavaScriptCore.h>
 
 #import "XCDYouTubeLogger+Private.h"
+#import "XCDYouTubeSignature.h"
 
-@interface XCDYouTubePlayerScript ()
+@interface XCDYouTubePlayerScript () {
+}
+@property (nonatomic, strong) NSString *nameFunction;
 @property (nonatomic, strong) JSContext *context;
 @property (nonatomic, strong) JSValue *signatureFunction;
 @end
@@ -16,6 +19,15 @@
 @implementation XCDYouTubePlayerScript
 
 - (instancetype) initWithString:(NSString *)string
+{
+	if (!(self = [super init]))
+		return nil; // LCOV_EXCL_LINE
+	
+	self = [self initWithString:string signatureFuctionName:nil patterns:nil];
+	return self;
+}
+
+- (instancetype) initWithString:(NSString *)string signatureFuctionName:(NSString *)name patterns:(NSArray *)pts;
 {
 	if (!(self = [super init]))
 		return nil; // LCOV_EXCL_LINE
@@ -37,6 +49,8 @@
 		},
 	};
 	_context[@"window"] = @{};
+	_nameFunction = name;
+	
 	for (NSString *propertyName in environment)
 	{
 		JSValue *value = [JSValue valueWithObject:environment[propertyName] inContext:_context];
@@ -76,6 +90,14 @@
 				     @"\\bc\\s*&&\\s*d\\.set\\([^,]+\\s*,\\s*\\([^)]*\\)\\s*\\(\\s*([a-zA-Z0-9$]+)\\("
                                      ];
 	
+	NSMutableArray *tmpArray = [patterns mutableCopy];
+	
+	for (NSString *pattern in pts) {
+		[tmpArray addObject:pattern];
+	}
+	
+	patterns = tmpArray;
+	
     NSMutableArray<NSRegularExpression *>*validRegularExpressions = [NSMutableArray new];
 
     for (NSString *pattern in patterns) {
@@ -105,10 +127,23 @@
         }
     }
 	
+	return self;
+}
+
+- (JSValue *)signatureFunction
+{
+	if (!_signatureFunction && self.nameFunction != nil) {
+		JSValue *signatureFunction = self.context[self.nameFunction];
+		if (signatureFunction.isObject)
+		{
+			_signatureFunction = signatureFunction;
+		}
+	}
+	
 	if (!_signatureFunction)
 		XCDYouTubeLogWarning(@"No signature function in player script");
 	
-	return self;
+	return _signatureFunction;
 }
 
 - (NSString *) unscrambleSignature:(NSString *)scrambledSignature
